@@ -45,7 +45,7 @@ Permitir que cada usuário envie, liste e baixe seus documentos, armazenados no 
 | --- | --- |
 | RNF-01 | Arquivos são gravados em `backend/storage` via Multer com `diskStorage`; nenhum provedor externo é utilizado. |
 | RNF-02 | Metadados são mantidos em memória e se perdem quando o processo backend reinicia. |
-| RNF-03 | Porta, diretório local e limite de upload podem ser configurados por variáveis de ambiente: `PORT` (padrão `3000`), `STORAGE_DIR` (padrão `backend/storage`) e `MAX_FILE_SIZE_BYTES` (padrão `10485760`). |
+| RNF-03 | Porta, diretório, limite por arquivo e cotas acumuladas podem ser configurados por `PORT` (padrão `3000`), `STORAGE_DIR` (padrão `backend/storage`), `MAX_FILE_SIZE_BYTES` (padrão `10485760`), `MAX_STORAGE_BYTES` (padrão `1073741824`) e `MAX_USER_STORAGE_BYTES` (padrão `104857600`). |
 | RNF-04 | O tamanho máximo padrão é 10 MiB e pode ser alterado por `MAX_FILE_SIZE_BYTES`. |
 | RNF-05 | Nome original não é usado como caminho de armazenamento; caminhos internos não são expostos pela API. |
 | RNF-06 | Erros da API são JSON; downloads bem-sucedidos retornam conteúdo binário como anexo. |
@@ -86,7 +86,7 @@ As rotas da API são `/upload`, `/documents` e `/documents/:id/download`. No fro
 
 - Entrada: cabeçalho `X-User-Id` e `multipart/form-data` com exatamente um arquivo no campo `file`.
 - Sucesso: `201 Created` com `{ "document": { ...metadados públicos } }`.
-- Erros: `400 USER_ID_REQUIRED` para usuário ausente/inválido; `400 FILE_REQUIRED` para arquivo ausente; `400 INVALID_UPLOAD` para envio inválido; `413 FILE_TOO_LARGE` quando o arquivo ultrapassar o limite; `500 INTERNAL_ERROR` para falha inesperada.
+- Erros: `400 USER_ID_REQUIRED` para usuário ausente/inválido; `400 FILE_REQUIRED` para arquivo ausente; `400 INVALID_UPLOAD` para envio inválido; `413 FILE_TOO_LARGE` quando o arquivo ultrapassar o limite; `413 STORAGE_LIMIT_EXCEEDED` quando a cota acumulada for excedida; `500 INTERNAL_ERROR` para falha inesperada.
 
 ### `GET /documents`
 

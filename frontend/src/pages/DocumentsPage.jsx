@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DocumentList from '../components/DocumentList.jsx';
 import UploadComponent from '../components/UploadComponent.jsx';
 import {
@@ -14,22 +14,35 @@ function getInitialUserId() {
 export default function DocumentsPage() {
   const [userId, setUserId] = useState(getInitialUserId);
   const [documents, setDocuments] = useState([]);
+  const [documentsOwner, setDocumentsOwner] = useState(userId);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
 
   useEffect(() => {
     window.localStorage.setItem('dms-user-id', userId);
     const controller = new AbortController();
     setLoading(true);
     setError('');
+    setDocuments([]);
+    setDocumentsOwner(null);
+    setNotice('');
 
     listDocuments(userId, controller.signal)
-      .then(setDocuments)
+      .then((loadedDocuments) => {
+        if (userIdRef.current === userId) {
+          setDocuments(loadedDocuments);
+          setDocumentsOwner(userId);
+        }
+      })
       .catch((requestError) => {
-        if (requestError.name !== 'AbortError') setError(requestError.message);
+        if (requestError.name !== 'AbortError' && userIdRef.current === userId) {
+          setError(requestError.message);
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -39,15 +52,21 @@ export default function DocumentsPage() {
   }, [userId]);
 
   async function handleUpload(file) {
+    const uploadUserId = userId;
     setUploading(true);
     setError('');
     setNotice('');
     try {
-      const document = await uploadDocument(file, userId);
-      setDocuments((currentDocuments) => [document, ...currentDocuments]);
-      setNotice('Documento enviado com sucesso.');
+      const document = await uploadDocument(file, uploadUserId);
+      setDocuments((currentDocuments) => userIdRef.current === uploadUserId
+        ? [document, ...currentDocuments]
+        : currentDocuments);
+      if (userIdRef.current === uploadUserId) {
+        setDocumentsOwner(uploadUserId);
+        setNotice('Documento enviado com sucesso.');
+      }
     } catch (requestError) {
-      setError(requestError.message);
+      if (userIdRef.current === uploadUserId) setError(requestError.message);
       throw requestError;
     } finally {
       setUploading(false);
@@ -63,8 +82,10 @@ export default function DocumentsPage() {
       const link = window.document.createElement('a');
       link.href = objectUrl;
       link.download = document.originalName;
+      window.document.body.appendChild(link);
       link.click();
-      URL.revokeObjectURL(objectUrl);
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -103,7 +124,7 @@ export default function DocumentsPage() {
       <section className="workspace" aria-label="Gerenciamento de documentos">
         <UploadComponent onUpload={handleUpload} disabled={uploading || !userId.trim()} />
         <DocumentList
-          documents={documents}
+          documents={documentsOwner === userId ? documents : []}
           loading={loading}
           downloadingId={downloadingId}
           onDownload={handleDownload}

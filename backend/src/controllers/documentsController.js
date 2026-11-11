@@ -12,9 +12,9 @@ function requireUser(req, res, next) {
   return next();
 }
 
-function uploadDocument(req, res, next) {
+async function uploadDocument(req, res, next) {
   try {
-    const document = documentService.createDocument(req.file, req.userId);
+    const document = await documentService.createDocument(req.file, req.userId);
     return res.status(201).json({ document });
   } catch (error) {
     return next(error);
@@ -36,8 +36,8 @@ async function downloadDocument(req, res, next) {
       req.userId
     );
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
-    return res.download(filePath, document.originalName, { dotfiles: 'allow' }, (error) => {
+    res.setHeader('Content-Type', 'application/octet-stream');
+    return res.download(filePath, document.originalName, {}, (error) => {
       if (!error || res.headersSent) {
         if (error) next(error);
         return;
